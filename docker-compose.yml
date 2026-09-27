@@ -1,0 +1,13 @@
+services:
+  dsmr2mqtt:
+    build: .
+    image: dsmr2mqtt:latest
+    container_name: dsmr2mqtt
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      SER_PORT: /dev/ttyUSB0
+    devices:
+      # Links: pad op de host (per locatie in .env), rechts: pad in de container
+      - "${P1_DEVICE:-/dev/ttyUSB0}:/dev/ttyUSB0"
