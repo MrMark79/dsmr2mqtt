@@ -1,0 +1,57 @@
+name: ha-hub-thuis
+
+services:
+  dsmr2mqtt:
+    build: ./dsmr2mqtt
+    image: dsmr2mqtt:latest
+    container_name: dsmr2mqtt
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      SER_PORT: /dev/ttyUSB0
+    devices:
+      # Links: pad op de host (per locatie in .env), rechts: pad in de container
+      - "${P1_DEVICE:-/dev/ttyUSB0}:/dev/ttyUSB0"
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:latest
+    container_name: zigbee2mqtt
+    profiles: ["zigbee"]
+    restart: unless-stopped
+    volumes:
+      - ./zigbee2mqtt:/app/data
+    ports:
+      - "8080:8080"          # webinterface
+    environment:
+      TZ: Europe/Amsterdam
+      ZIGBEE2MQTT_CONFIG_MQTT_SERVER: "mqtt://${MQTT_BROKER}:${MQTT_PORT:-1883}"
+      ZIGBEE2MQTT_CONFIG_MQTT_USER: "${Z2M_MQTT_USERNAME}"
+      ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: "${Z2M_MQTT_PASSWORD}"
+      ZIGBEE2MQTT_CONFIG_SERIAL_PORT: /dev/ttyZigbee
+      ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER: "${ZIGBEE_ADAPTER:-ember}"
+      ZIGBEE2MQTT_CONFIG_SERIAL_BAUDRATE: "${ZIGBEE_BAUDRATE:-115200}"
+      ZIGBEE2MQTT_CONFIG_SERIAL_RTSCTS: "${ZIGBEE_RTSCTS:-false}"
+      ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "true"
+      ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
+    devices:
+      - "${ZIGBEE_DEVICE:-/dev/ttyACM0}:/dev/ttyZigbee"
+
+  zwave-js-ui:
+    image: zwavejs/zwave-js-ui:latest
+    container_name: zwave-js-ui
+    profiles: ["zwave"]
+    restart: unless-stopped
+    tty: true
+    stop_signal: SIGINT
+    environment:
+      TZ: Europe/Amsterdam
+      SESSION_SECRET: "${ZWAVE_SESSION_SECRET}"
+      ZWAVEJS_EXTERNAL_CONFIG: /usr/src/app/store/.config-db
+    volumes:
+      - ./zwave-js-ui:/usr/src/app/store
+    ports:
+      - "8091:8091"          # webinterface
+      - "3000:3000"          # Z-Wave JS websocket (voor Home Assistant)
+    devices:
+      - "${ZWAVE_DEVICE:-/dev/ttyACM1}:/dev/zwave"
